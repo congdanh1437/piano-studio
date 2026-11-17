@@ -7,6 +7,7 @@ import { evaluate, Lesson, lessons, LEVELS } from './lessons';
 import { HandMode, LEAD_IN, PracticeSession } from './practice';
 import { loadKeyHints, loadStars, saveKeyHints, saveStars } from './progress';
 import { draw } from './render';
+import { parseMusicXml, readScoreFile } from './musicxml';
 import { parseMidi, Song } from './song';
 import { deleteSong, loadSongs, saveSong } from './storage';
 import './style.css';
@@ -121,29 +122,37 @@ function showLessons() {
   }
 }
 
-async function showLibrary(notice = '') {
+/** `notice` goes at the top, or in the backup section when it is about a restore. */
+async function showLibrary(notice = '', about: 'songs' | 'backup' = 'songs') {
   const page = homeShell('library');
   const intro = el('div', 'library-intro');
-  intro.append(el('p', 'muted', 'Luyện tự do các bài bạn muốn. Nhập file MIDI để thêm bài.'));
+  intro.append(el('p', 'muted', 'Luyện tự do các bài bạn muốn. Nhập file MIDI hoặc bản nhạc MusicXML (.musicxml, .xml, .mxl) để thêm bài.'));
 
   const input = el('input');
   input.type = 'file';
-  input.accept = '.mid,.midi,audio/midi,audio/x-midi';
+  // No type filter on purpose: Android's file picker greys out .mxl and .musicxml because
+  // it doesn't know their types. The file's content decides what it is instead.
   input.hidden = true;
-  const message = el('p', 'message');
+  const message = el('p', 'message is-good', about === 'songs' ? notice : '');
   message.setAttribute('role', 'status');
   input.addEventListener('change', async () => {
     const file = input.files?.[0];
     if (!file) return;
+    input.value = '';
     try {
       const id = `song-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      await saveSong(parseMidi(await file.arrayBuffer(), id, file.name.replace(/\.midi?$/i, '')));
-      await showLibrary();
+      const name = file.name.replace(/\.(midi?|musicxml|xml|mxl)$/i, '');
+      const data = await file.arrayBuffer();
+      const score = await readScoreFile(data);
+      const song = score.kind === 'midi' ? parseMidi(data, id, name) : parseMusicXml(score.text, id, name);
+      await saveSong(song);
+      await showLibrary(`Đã thêm "${song.title}".`);
     } catch (error) {
+      message.classList.remove('is-good');
       message.textContent = `Không mở được "${file.name}": ${error instanceof Error ? error.message : 'file lỗi'}`;
     }
   });
-  intro.append(button('Nhập file MIDI', () => input.click(), 'btn btn-primary'), input);
+  intro.append(button('Nhập bài', () => input.click(), 'btn btn-primary'), input);
 
   const list = el('ul', 'song-list');
   const imported = await loadSongs().catch(() => [] as Song[]);
@@ -169,7 +178,7 @@ async function showLibrary(notice = '') {
     }
     list.append(item);
   }
-  page.append(intro, message, list, backupSection((summary) => void showLibrary(summary), notice));
+  page.append(intro, message, list, backupSection((summary) => void showLibrary(summary, 'backup'), about === 'backup' ? notice : ''));
 }
 
 // ---------- Player ----------

@@ -208,6 +208,10 @@ input:focus-visible {
   font-size: 0.9rem;
 }
 
+.message.is-good {
+  color: var(--accent);
+}
+
 .song-list {
   display: grid;
   gap: 10px;

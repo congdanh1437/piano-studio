@@ -37,7 +37,7 @@ Bài đã nhập, beat, sao bài học và file MP3 chỉ lưu trong trình duy�
 - Làm beat: tab "Làm beat". Bấm hoặc kéo trên bảng để bật nốt cho Trống, Bass, Giai điệu; tối đa 4 ô nhịp. Beat tự lưu trên thiết bị và xuất được WAV hoặc MIDI. Trên laptop, `Z X C A S D F` gõ trống; bật "Thu" khi đang phát để ghi nhịp gõ vào bảng.
 - Nhập beat: trong tab "Làm beat", bấm "Nhập MP3". App ước đoán BPM, trống và bass rồi cho bạn chỉnh trước khi đưa lên bảng; file gốc có thể phát kèm để so sánh. Kết quả tốt nhất với beat không lời, và cần nghe lại để sửa. File xuất chỉ gồm phần trên bảng, không gồm MP3 gốc.
 - Làm beat theo YouTube: trong tab "Làm beat", dán link video để nghe ngay trong app. Có lặp đoạn A–B, giảm tốc, gõ tay để tìm BPM, và chạy cùng bảng để gõ lại nhịp bằng "Thu". App không tải và không đọc được âm thanh của video, nên không tự tìm nhịp như với file MP3. Cần có mạng, và một số video không cho nhúng.
-- Bài của bạn: tab "Thư viện", bấm "Nhập file MIDI". Bài được lưu ngay trên thiết bị đó.
+- Bài của bạn: tab "Thư viện", bấm "Nhập bài". App nhận file MIDI và bản nhạc MusicXML (`.musicxml`, `.xml`, `.mxl`, ví dụ xuất từ MuseScore). Bè piano có 2 khuông được chia thành tay phải và tay trái; dấu lặp và các nhánh 1, 2 được chơi đúng thứ tự, nhưng chưa xử lý được D.C. và D.S. Bài được lưu ngay trên thiết bị đó.
 
 ## Cấu trúc code
 
@@ -56,6 +56,7 @@ Bài đã nhập, beat, sao bài học và file MP3 chỉ lưu trong trình duy�
 | `src/score.ts` | Đọc ký hiệu bản nhạc viết tay trong giáo trình |
 | `src/practice.ts` | Luật luyện tập: chờ nốt, chấm điểm, lặp đoạn |
 | `src/song.ts` | Đọc file MIDI, tách tay trái và tay phải |
+| `src/musicxml.ts` | Đọc bản nhạc MusicXML và file nén `.mxl` |
 | `src/keyboard.ts` | Bố trí phím theo quãng của bài, xác định phím được chạm |
 | `src/audio.ts` | Âm thanh piano |
 | `src/render.ts` | Vẽ nốt rơi và bàn phím |
