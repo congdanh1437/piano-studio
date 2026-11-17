@@ -1,20 +1,7 @@
 import { backupFileName, createBackup, DeviceData, fromBase64, parseBackup, planMerge } from './backup';
 import { loadStars, saveAllStars } from './progress';
 import { loadAllAudio, loadAudioIds, loadBeats, loadSongs, saveAudio, saveBeat, saveSong } from './storage';
-
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = ''): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text) node.textContent = text;
-  return node;
-}
-
-function button(label: string, onClick: () => void, className = 'btn'): HTMLButtonElement {
-  const node = el('button', className, label);
-  node.type = 'button';
-  node.addEventListener('click', onClick);
-  return node;
-}
+import { button, el } from './ui';
 
 async function deviceData(): Promise<DeviceData> {
   const [songs, beats, audioIds] = await Promise.all([loadSongs(), loadBeats(), loadAudioIds()]);

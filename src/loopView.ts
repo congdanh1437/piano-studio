@@ -16,6 +16,7 @@ import {
 } from './loop';
 import { loadKeyHints } from './progress';
 import { loadLoop, saveLoop } from './storage';
+import { button, canvasBox, el, popover, sliderField, switchControl, tip } from './ui';
 
 const LOOKAHEAD_SECONDS = 0.15;
 const SCHEDULER_MS = 25;
@@ -27,33 +28,7 @@ const SOLFEGE = ['Đô', '', 'Rê', '', 'Mi', 'Fa', '', 'Sol', '', 'La', '', 'Si
 const KEYBOARD_SPAN = 31;
 const BASE_LOW = 48;
 
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = ''): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text) node.textContent = text;
-  return node;
-}
-
-function button(label: string, onClick: () => void, className = 'btn'): HTMLButtonElement {
-  const node = el('button', className, label);
-  node.type = 'button';
-  node.addEventListener('click', onClick);
-  return node;
-}
-
-function slider(label: string, min: number, max: number, step: number, value: number, onInput: (value: number) => void) {
-  const wrap = el('label', 'beat-field');
-  const text = el('span', '', label);
-  const input = el('input');
-  input.type = 'range';
-  input.min = String(min);
-  input.max = String(max);
-  input.step = String(step);
-  input.value = String(value);
-  input.addEventListener('input', () => onInput(Number(input.value)));
-  wrap.append(text, input);
-  return { wrap, input, text };
-}
+const percent = (value: number) => `${Math.round(value * 100)}%`;
 
 function readLatency(fallback: number): number {
   try {
@@ -270,8 +245,8 @@ export async function mountLiveLoop(root: HTMLElement, piano: Piano): Promise<()
   // ---------- Controls ----------
 
   const playButton = button('▶ Phát', () => (transport ? stop() : start()), 'btn btn-primary btn-play');
-  const recordButton = button('● Thu lớp mới', toggleRecord);
-  const undoButton = button('Hoàn tác lớp', () => {
+  const recordButton = button('● Thu lớp mới', toggleRecord, 'btn btn-record');
+  const undoButton = button('↶ Hoàn tác lớp', () => {
     if (take) finishTake();
     const removed = session.layers.pop();
     if (removed) {
@@ -293,10 +268,9 @@ export async function mountLiveLoop(root: HTMLElement, piano: Piano): Promise<()
     syncTransport();
   }, 'btn btn-quiet');
 
-  const bpmControl = slider(`Tốc độ ${session.bpm} BPM`, 60, 180, 1, session.bpm, (value) => {
+  const bpmControl = sliderField('Tốc độ', { min: 60, max: 180, step: 1, value: session.bpm, format: (v) => `${v} BPM`, wide: true }, (value) => {
     if (transport) transport.setBpm(ctx.currentTime, value);
     session.bpm = value;
-    bpmControl.text.textContent = `Tốc độ ${value} BPM`;
     fx.setDelay(session.fx.delay, value);
     persist();
   });
@@ -323,21 +297,27 @@ export async function mountLiveLoop(root: HTMLElement, piano: Piano): Promise<()
     grid = Number(gridSelect.value);
   });
 
-  const metronomeButton = button('Máy đếm nhịp: Bật', () => {
-    metronomeOn = !metronomeOn;
-    syncTransport();
+  const metronomeSwitch = switchControl('Máy đếm nhịp', metronomeOn, (on) => {
+    metronomeOn = on;
   });
-  const countInButton = button('Đếm vào: Bật', () => {
-    countInOn = !countInOn;
-    syncTransport();
+  const countInSwitch = switchControl('Đếm vào 4 phách trước khi thu', countInOn, (on) => {
+    countInOn = on;
   });
 
-  const latencyControl = slider(`Bù trễ ${latencyMs} ms`, 0, 300, 5, latencyMs, (value) => {
+  const latencyControl = sliderField('Bù trễ', { min: 0, max: 300, step: 5, value: latencyMs, format: (v) => `${v} ms` }, (value) => {
     latencyMs = value;
-    latencyControl.text.textContent = `Bù trễ ${value} ms`;
     writeLatency(value);
   });
-  latencyControl.wrap.title = 'Nếu nốt thu được luôn bị muộn so với nhịp, hãy tăng số này; nếu bị sớm, hãy giảm.';
+
+  const gridField = el('label', 'field');
+  gridField.append(el('span', 'field-head', 'Căn nhịp khi thu'), gridSelect);
+  const recordSettings = popover('Cài đặt thu', [
+    metronomeSwitch.element,
+    countInSwitch.element,
+    gridField,
+    latencyControl.element,
+    el('p', 'muted', 'Bù trễ: nếu nốt thu được luôn muộn hơn nhịp, hãy tăng số này; nếu luôn sớm, hãy giảm.'),
+  ]);
 
   const performanceButton = button('⏺ Thu màn biểu diễn', () => togglePerformance());
   const status = el('span', 'beat-status');
@@ -392,25 +372,25 @@ export async function mountLiveLoop(root: HTMLElement, piano: Piano): Promise<()
     return node;
   });
 
-  const filterControl = slider('Filter', 0, 1, 0.01, session.fx.filter, (value) => {
+  const filterControl = sliderField('Filter (kéo xuống để nhạc lắng lại)', { min: 0, max: 1, step: 0.01, value: session.fx.filter, format: percent, wide: true }, (value) => {
     session.fx.filter = value;
     fx.setFilter(value);
     persist();
   });
-  const delayControl = slider('Delay', 0, 1, 0.01, session.fx.delay, (value) => {
+  const delayControl = sliderField('Delay (tiếng vọng)', { min: 0, max: 1, step: 0.01, value: session.fx.delay, format: percent }, (value) => {
     session.fx.delay = value;
     fx.setDelay(value, session.bpm);
     persist();
   });
-  const reverbControl = slider('Reverb', 0, 1, 0.01, session.fx.reverb, (value) => {
+  const reverbControl = sliderField('Reverb (độ vang)', { min: 0, max: 1, step: 0.01, value: session.fx.reverb, format: percent }, (value) => {
     session.fx.reverb = value;
     fx.setReverb(value);
     persist();
   });
-  filterControl.wrap.classList.add('loop-filter');
+  filterControl.element.classList.add('loop-filter');
   // After sweeping the filter down for a breakdown, one tap brings the full sound back.
   const springBack = button('Mở filter', () => {
-    filterControl.input.value = '1';
+    filterControl.set(1);
     session.fx.filter = 1;
     fx.setFilter(1);
     persist();
@@ -427,7 +407,7 @@ export async function mountLiveLoop(root: HTMLElement, piano: Piano): Promise<()
   // ---------- Layers and timeline ----------
 
   const layerList = el('ol', 'loop-layers');
-  const timeline = el('canvas', 'loop-timeline');
+  const { box: timelineBox, canvas: timeline } = canvasBox('loop-timeline');
   const timelineCtx = timeline.getContext('2d')!;
 
   function renderLayers() {
@@ -529,7 +509,8 @@ export async function mountLiveLoop(root: HTMLElement, piano: Piano): Promise<()
   // ---------- Playing surface ----------
 
   const surface = el('div', 'loop-surface');
-  const keysCanvas = el('canvas', 'loop-keys');
+  const { box: keysBox, canvas: keysCanvas } = canvasBox('loop-keys');
+  keysCanvas.style.touchAction = 'none';
   const keysCtx = keysCanvas.getContext('2d')!;
   const pads = el('div', 'loop-pads');
   let keys: Key[] = [];
@@ -650,11 +631,11 @@ export async function mountLiveLoop(root: HTMLElement, piano: Piano): Promise<()
 
   const octaveBar = el('div', 'beat-bar');
   octaveBar.append(octaveDown, octaveLabel, octaveUp);
-  surface.append(octaveBar, keysCanvas, pads);
+  surface.append(octaveBar, keysBox, pads);
 
   function renderSurface() {
     const drums = instrument === 'drums';
-    keysCanvas.hidden = drums;
+    keysBox.hidden = drums;
     octaveBar.hidden = drums;
     pads.hidden = !drums;
     if (!drums) layoutKeyboard();
@@ -667,10 +648,6 @@ export async function mountLiveLoop(root: HTMLElement, piano: Piano): Promise<()
     recordButton.textContent = take ? '■ Kết thúc lớp' : '● Thu lớp mới';
     recordButton.classList.toggle('is-recording', Boolean(take));
     recordButton.setAttribute('aria-pressed', String(Boolean(take)));
-    metronomeButton.textContent = `Máy đếm nhịp: ${metronomeOn ? 'Bật' : 'Tắt'}`;
-    metronomeButton.setAttribute('aria-pressed', String(metronomeOn));
-    countInButton.textContent = `Đếm vào: ${countInOn ? 'Bật' : 'Tắt'}`;
-    countInButton.setAttribute('aria-pressed', String(countInOn));
     performanceButton.textContent = performance ? '■ Dừng thu biểu diễn' : '⏺ Thu màn biểu diễn';
     performanceButton.classList.toggle('is-recording', Boolean(performance));
     undoButton.disabled = session.layers.length === 0;
@@ -683,7 +660,7 @@ export async function mountLiveLoop(root: HTMLElement, piano: Piano): Promise<()
   const levels = new Float32Array(512);
   function animate() {
     drawTimeline();
-    if (!keysCanvas.hidden) drawKeyboard();
+    if (!keysBox.hidden) drawKeyboard();
     meter.getFloatTimeDomainData(levels);
     let peak = 0;
     for (const v of levels) peak = Math.max(peak, Math.abs(v));
@@ -741,22 +718,29 @@ export async function mountLiveLoop(root: HTMLElement, piano: Piano): Promise<()
   window.addEventListener('keyup', onKeyUp);
   document.addEventListener('visibilitychange', onVisibility);
   const resize = new ResizeObserver(() => {
-    if (!keysCanvas.hidden) layoutKeyboard();
+    if (!keysBox.hidden) layoutKeyboard();
   });
   resize.observe(keysCanvas);
 
   // ---------- Page ----------
 
+  // Playing and recording first; loop length and tempo next to them; settings tucked away.
   const transportBar = el('div', 'beat-bar');
-  transportBar.append(playButton, recordButton, undoButton, clearButton, bpmControl.wrap, barsSelect, gridSelect, metronomeButton, countInButton);
+  transportBar.append(playButton, recordButton, undoButton, bpmControl.element, barsSelect, recordSettings.element, el('span', 'toolbar-spacer'), clearButton);
   const fxBar = el('div', 'beat-bar');
-  fxBar.append(filterControl.wrap, springBack, delayControl.wrap, reverbControl.wrap, latencyControl.wrap, performanceButton, meterBar, status);
+  const fxEffects = popover('Delay, Reverb', [delayControl.element, reverbControl.element]);
+  fxBar.append(filterControl.element, springBack, fxEffects.element, el('span', 'toolbar-spacer'), meterBar, performanceButton, status);
   const middle = el('div', 'loop-middle');
-  middle.append(layerList, timeline);
-  const hint = showKeys
+  middle.append(layerList, timelineBox);
+  const keysHint = showKeys
     ? el('p', 'muted', 'Space: phát/dừng · Enter: thu/kết thúc lớp · ←/→: đổi quãng · Phím Z, Q… để chơi, như ở phần học.')
-    : el('p', 'muted', 'Đổi nhạc cụ trong lúc thu sẽ tự sang lớp mới, nên bạn có thể dựng bài liên tục.');
-  root.append(transportBar, instrumentGroup, fxBar, middle, hint, surface);
+    : null;
+  const howTo = tip('loop', 'Live Loop: dựng bài từng lớp', [
+    'Chọn nhạc cụ, bấm "● Thu lớp mới", nghe đếm vào 4 tiếng rồi chơi. Bấm lại để kết thúc lớp.',
+    'Lớp vừa thu sẽ lặp mãi. Chọn nhạc cụ khác và thu tiếp để chồng thêm lớp; đổi nhạc cụ trong lúc thu sẽ tự sang lớp mới.',
+    'Kéo Filter xuống rồi bấm "Mở filter" để làm đoạn chuyển. Bấm "Thu màn biểu diễn" để lưu lại cả phần trình diễn.',
+  ]);
+  root.append(transportBar, ...(howTo ? [howTo] : []), instrumentGroup, fxBar, middle, ...(keysHint ? [keysHint] : []), surface);
 
   renderSurface();
   syncInstrument();

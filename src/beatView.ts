@@ -27,6 +27,7 @@ import { createYouTubePanel } from './youtubePanel';
 import { loadKeyHints } from './progress';
 import { Bus, createBus, playRow, renderWav } from './sounds';
 import { deleteAudio, deleteBeat, loadAudio, loadBeats, saveBeat } from './storage';
+import { button, el, menu, popover, saveFile, Slider, sliderField, switchControl, tip } from './ui';
 
 const NOTE_NAMES = ['Đô', 'Đô#', 'Rê', 'Rê#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si'];
 const VIEWS: [Part, string][] = [['drums', 'Trống'], ['bass', 'Bass'], ['lead', 'Giai điệu']];
@@ -34,45 +35,7 @@ const LOOKAHEAD_SECONDS = 0.12;
 const SCHEDULER_MS = 25;
 const SAVE_DELAY_MS = 400;
 
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = ''): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text) node.textContent = text;
-  return node;
-}
-
-function button(label: string, onClick: () => void, className = 'btn'): HTMLButtonElement {
-  const node = el('button', className, label);
-  node.type = 'button';
-  node.addEventListener('click', onClick);
-  return node;
-}
-
-function slider(min: number, max: number, step: number, value: number, onInput: (value: number) => void) {
-  const input = el('input');
-  input.type = 'range';
-  input.min = String(min);
-  input.max = String(max);
-  input.step = String(step);
-  input.value = String(value);
-  input.addEventListener('input', () => onInput(Number(input.value)));
-  return input;
-}
-
-function labelled(text: HTMLElement | string, control: HTMLElement) {
-  const label = el('label', 'beat-field');
-  label.append(typeof text === 'string' ? el('span', '', text) : text, control);
-  return label;
-}
-
-function saveFile(data: BlobPart, type: string, filename: string) {
-  const url = URL.createObjectURL(new Blob([data], { type }));
-  const link = el('a');
-  link.href = url;
-  link.download = filename;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
-}
+const percent = (value: number) => `${Math.round(value * 100)}%`;
 
 const fileName = (beat: Beat) => beat.name.replace(/[\\/:*?"<>|]/g, '').trim() || 'beat';
 
@@ -282,31 +245,19 @@ export async function mountBeatMaker(root: HTMLElement, piano: Piano): Promise<(
     if (chosen) openBeat(chosen);
   });
 
-  const presetSelect = el('select', 'beat-select');
-  presetSelect.setAttribute('aria-label', 'Tạo từ beat mẫu');
-  presetSelect.append(new Option('Tạo từ mẫu…', ''), ...PRESETS.map((p) => new Option(p.name, p.name)));
-  presetSelect.addEventListener('change', () => {
-    const preset = PRESETS.find((p) => p.name === presetSelect.value);
-    presetSelect.value = '';
-    if (preset) addBeat(beatFromPreset(preset));
-  });
-
   const togglePlayback = () => (isPlaying() || waitingForVideo ? stop() : play());
   const playButton = button('▶ Phát', togglePlayback, 'btn btn-primary btn-play');
   const recordButton = button('● Thu', () => {
     recording = !recording;
     syncTransport();
-  });
+  }, 'btn btn-record');
+  recordButton.title = 'Bật rồi gõ pad trong lúc phát để ghi nhịp vào bảng';
 
-  const bpmValue = el('span');
-  const bpmInput = slider(60, 180, 1, beat.bpm, (value) => {
+  const bpmField = sliderField('Tốc độ', { min: 60, max: 180, step: 1, value: beat.bpm, format: (v) => `${v} BPM`, wide: true }, (value) => {
     setBpm(value);
-    bpmValue.textContent = `Tốc độ ${value} BPM`;
   });
-  const swingValue = el('span');
-  const swingInput = slider(0, 0.6, 0.05, beat.swing, (value) => {
+  const swingField = sliderField('Swing (nhịp lắc)', { min: 0, max: 0.6, step: 0.05, value: beat.swing, format: percent }, (value) => {
     beat.swing = value;
-    swingValue.textContent = `Swing ${Math.round(value * 100)}%`;
     persist();
   });
 
@@ -327,15 +278,13 @@ export async function mountBeatMaker(root: HTMLElement, piano: Piano): Promise<(
     renderGrid();
   });
 
-  const mixInputs = {} as Record<Part, HTMLInputElement>;
-  const mix = el('div', 'beat-mix');
+  const mixInputs = {} as Record<Part, Slider>;
   for (const [part, label] of VIEWS) {
-    mixInputs[part] = slider(0, 1, 0.05, beat.mix[part], (value) => {
+    mixInputs[part] = sliderField(`Âm lượng ${label.toLowerCase()}`, { min: 0, max: 1, step: 0.05, value: beat.mix[part], format: percent }, (value) => {
       beat.mix[part] = value;
       if (bus) bus.parts[part].gain.value = value;
       persist();
     });
-    mix.append(labelled(label, mixInputs[part]));
   }
 
   const status = el('span', 'beat-status');
@@ -350,8 +299,7 @@ export async function mountBeatMaker(root: HTMLElement, piano: Piano): Promise<(
     },
     tempo: (bpm) => {
       setBpm(bpm);
-      bpmInput.value = String(bpm);
-      bpmValue.textContent = `Tốc độ ${bpm} BPM`;
+      bpmField.set(bpm);
     },
     timing: changeTiming,
   });
@@ -362,14 +310,13 @@ export async function mountBeatMaker(root: HTMLElement, piano: Piano): Promise<(
 
   // Comparing with the imported recording
   const backingBox = el('div', 'beat-bar');
-  const backingToggle = button('MP3 gốc: Bật', () => {
+  const backingToggle = switchControl('Phát kèm MP3 gốc', true, (on) => {
     if (!beat.backing) return;
-    beat.backing.on = !beat.backing.on;
+    beat.backing.on = on;
     applyBackingLevel();
-    syncBacking();
     persist();
   });
-  const backingVolume = slider(0, 1, 0.05, 0.8, (value) => {
+  const backingVolume = sliderField('Âm lượng MP3', { min: 0, max: 1, step: 0.05, value: 0.8, format: percent }, (value) => {
     if (!beat.backing) return;
     beat.backing.volume = value;
     applyBackingLevel();
@@ -383,15 +330,16 @@ export async function mountBeatMaker(root: HTMLElement, piano: Piano): Promise<(
     syncBacking();
     persist();
   }, 'btn btn-quiet');
-  backingBox.append(backingToggle, labelled('Âm lượng MP3', backingVolume), backingRemove);
+  const backingLoading = el('span', 'muted', 'Đang tải MP3…');
+  backingBox.append(backingToggle.element, backingVolume.element, backingLoading, backingRemove);
 
   function syncBacking() {
     const backing = beat.backing;
     backingBox.hidden = !backing;
     if (!backing) return;
-    backingToggle.textContent = recordings.has(backing.audioId) ? `MP3 gốc: ${backing.on ? 'Bật' : 'Tắt'}` : 'MP3 gốc: Đang tải…';
-    backingToggle.setAttribute('aria-pressed', String(backing.on));
-    backingVolume.value = String(backing.volume);
+    backingLoading.hidden = recordings.has(backing.audioId);
+    backingToggle.set(backing.on);
+    backingVolume.set(backing.volume);
   }
 
   const fileInput = el('input');
@@ -403,7 +351,6 @@ export async function mountBeatMaker(root: HTMLElement, piano: Piano): Promise<(
     fileInput.value = '';
     if (!file) return;
     if (isPlaying() || waitingForVideo) stop();
-    importButton.disabled = true;
     try {
       const imported = await importAudioFile(file, root, piano, (message) => {
         status.textContent = message;
@@ -416,12 +363,12 @@ export async function mountBeatMaker(root: HTMLElement, piano: Piano): Promise<(
     } catch (error) {
       status.textContent = error instanceof Error ? error.message : 'Không nhập được file này.';
     }
-    importButton.disabled = false;
   });
-  const importButton = button('Nhập MP3', () => fileInput.click());
 
-  const exportWav = button('Xuất WAV', async () => {
-    exportWav.disabled = true;
+  let exporting = false;
+  async function exportWav() {
+    if (exporting) return;
+    exporting = true;
     status.textContent = 'Đang xuất WAV…';
     try {
       saveFile(await renderWav(beat), 'audio/wav', `${fileName(beat)}.wav`);
@@ -429,16 +376,10 @@ export async function mountBeatMaker(root: HTMLElement, piano: Piano): Promise<(
     } catch {
       status.textContent = 'Không xuất được WAV.';
     }
-    exportWav.disabled = false;
-  });
-  const exportMidi = button('Xuất MIDI', () => {
-    saveFile(new Uint8Array(beatToMidi(beat)), 'audio/midi', `${fileName(beat)}.mid`);
-    status.textContent = 'Đã xuất MIDI.';
-  });
+    exporting = false;
+  }
 
-  const newButton = button('Beat mới', () => addBeat(emptyBeat(`Beat ${beats.length + 1}`)));
-  const copyButton = button('Nhân bản', () => addBeat({ ...structuredClone(beat), id: newBeatId(), name: `${beat.name} (bản sao)` }));
-  const deleteButton = button('Xóa', async () => {
+  async function deleteCurrent() {
     if (!confirm(`Xóa "${beat.name}"?`)) return;
     clearTimeout(saveTimer);
     await deleteBeat(beat.id).catch(() => {});
@@ -447,7 +388,54 @@ export async function mountBeatMaker(root: HTMLElement, piano: Piano): Promise<(
     if (beats.length === 0) beats = [emptyBeat('Beat 1')];
     openBeat(beats[0]);
     persist();
-  }, 'btn btn-quiet');
+  }
+
+  // Everything about the beat as a file lives in one menu, so the screen stays about music.
+  const nameField = el('label', 'field field-wide');
+  nameField.append(el('span', 'field-head', 'Tên beat'), nameInput);
+  const beatActions: [string, () => void, boolean?][] = [
+    ['Beat mới (trống)', () => addBeat(emptyBeat(`Beat ${beats.length + 1}`))],
+    ['Nhân bản beat này', () => addBeat({ ...structuredClone(beat), id: newBeatId(), name: `${beat.name} (bản sao)` })],
+    ['Xóa beat này', () => void deleteCurrent(), true],
+  ];
+  const beatMenu = popover('Beat', [
+    nameField,
+    ...beatActions.map(([label, run, danger]) => button(label, () => {
+      beatMenu.close();
+      run();
+    }, danger ? 'menu-item is-danger' : 'menu-item')),
+    el('p', 'menu-title', 'Bắt đầu từ beat mẫu'),
+    ...PRESETS.map((preset) => button(preset.name, () => {
+      beatMenu.close();
+      addBeat(beatFromPreset(preset));
+    }, 'menu-item')),
+  ], 'menu');
+
+  const addMenu = menu('Thêm nhạc', [
+    { items: [
+      { label: 'Nhập MP3 để chép nhịp…', run: () => fileInput.click() },
+      { label: 'Gắn link YouTube để nghe theo…', run: () => youtubePanel.openForm() },
+    ] },
+  ]);
+  const exportMenu = menu('Xuất file', [
+    { items: [
+      { label: 'Xuất WAV (nghe được)', run: () => void exportWav() },
+      { label: 'Xuất MIDI (mở trong phần mềm khác)', run: () => {
+        saveFile(new Uint8Array(beatToMidi(beat)), 'audio/midi', `${fileName(beat)}.mid`);
+        status.textContent = 'Đã xuất MIDI.';
+      } },
+    ] },
+  ]);
+
+  const keyField = el('div', 'field');
+  const keyRow = el('div', 'toolbar-group');
+  keyRow.append(rootSelect, scaleSelect);
+  keyField.append(el('span', 'field-head', 'Giọng của bass và giai điệu'), keyRow);
+  const soundPanel = popover('Âm thanh', [
+    swingField.element,
+    keyField,
+    ...VIEWS.map(([part]) => mixInputs[part].element),
+  ]);
 
   // Part tabs and bar pages
   const viewTabs = el('div', 'segmented');
@@ -544,19 +532,18 @@ export async function mountBeatMaker(root: HTMLElement, piano: Piano): Promise<(
 
   function syncTransport() {
     playButton.textContent = isPlaying() ? '■ Dừng' : '▶ Phát';
+    recordButton.textContent = recording ? '● Đang thu' : '● Thu';
     recordButton.setAttribute('aria-pressed', String(recording));
     recordButton.classList.toggle('is-recording', recording);
   }
 
   function syncFields() {
     nameInput.value = beat.name;
-    bpmInput.value = String(beat.bpm);
-    bpmValue.textContent = `Tốc độ ${beat.bpm} BPM`;
-    swingInput.value = String(beat.swing);
-    swingValue.textContent = `Swing ${Math.round(beat.swing * 100)}%`;
+    bpmField.set(beat.bpm);
+    swingField.set(beat.swing);
     rootSelect.value = String(beat.root);
     scaleSelect.value = beat.scale;
-    for (const [part] of VIEWS) mixInputs[part].value = String(beat.mix[part]);
+    for (const [part] of VIEWS) mixInputs[part].set(beat.mix[part]);
     syncBacking();
     refreshBeatList();
   }
@@ -663,14 +650,18 @@ export async function mountBeatMaker(root: HTMLElement, piano: Piano): Promise<(
   document.addEventListener('visibilitychange', onVisibility);
 
   // Page
-  const row1 = el('div', 'beat-bar');
-  row1.append(playButton, recordButton, labelled(bpmValue, bpmInput), labelled(swingValue, swingInput), rootSelect, scaleSelect, mix);
-  const row2 = el('div', 'beat-bar');
-  row2.append(beatSelect, nameInput, presetSelect, importButton, fileInput, newButton, copyButton, deleteButton, exportWav, exportMidi, status);
-  const row3 = el('div', 'beat-bar');
-  row3.append(viewTabs, barTabs, addBar, removeBar);
-  if (showKeys) row3.append(el('span', 'muted', 'Space: phát/dừng · Z X C A S D F: gõ trống'));
-  root.append(row2, row1, youtubePanel.element, backingBox, row3, grid);
+  // One row for playing, one for which beat and its files, one for what the grid shows.
+  const transportRow = el('div', 'beat-bar');
+  transportRow.append(playButton, recordButton, bpmField.element, soundPanel.element, el('span', 'toolbar-spacer'), beatSelect, beatMenu.element, addMenu, exportMenu, fileInput);
+  const gridRow = el('div', 'beat-bar');
+  gridRow.append(viewTabs, barTabs, addBar, removeBar, el('span', 'toolbar-spacer'), status);
+  if (showKeys) gridRow.append(el('span', 'muted', 'Space: phát/dừng · Z X C A S D F: gõ trống'));
+  const howTo = tip('beats', 'Làm beat trong 3 bước', [
+    'Chạm vào các ô để bật nhịp, hoặc kéo ngón qua nhiều ô. Mỗi hàng là một tiếng trống, mỗi cột là một bước.',
+    'Bấm ▶ Phát để nghe vòng lặp. Đổi Trống / Bass / Giai điệu để viết thêm phần khác.',
+    'Chưa biết bắt đầu từ đâu? Mở menu "Beat" và chọn một beat mẫu.',
+  ]);
+  root.append(transportRow, ...(howTo ? [howTo] : []), youtubePanel.element, backingBox, gridRow, grid);
 
   syncFields();
   renderGrid();

@@ -1,4 +1,5 @@
 import { Beat } from './beat';
+import { button, el, switchControl } from './ui';
 import { createTapTempo, fitBpm, parseYouTubeLink, youTubeError } from './youtube';
 
 const API_URL = 'https://www.youtube.com/iframe_api';
@@ -54,19 +55,6 @@ function loadApi(): Promise<void> {
   return apiLoading;
 }
 
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = ''): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text) node.textContent = text;
-  return node;
-}
-
-function button(label: string, onClick: () => void, className = 'btn'): HTMLButtonElement {
-  const node = el('button', className, label);
-  node.type = 'button';
-  node.addEventListener('click', onClick);
-  return node;
-}
 
 const clock = (seconds: number) => {
   const s = Math.max(0, Math.floor(seconds));
@@ -91,6 +79,8 @@ export function createYouTubePanel(hooks: YouTubePanelHooks) {
   let loopTimer = 0;
   let pendingStart: (() => void) | null = null;
   let pendingTimer = 0;
+  /** The link box only shows once asked for, so it doesn't sit on every beat. */
+  let formWanted = false;
   const tap = createTapTempo();
 
   const box = el('section', 'yt-box');
@@ -103,7 +93,11 @@ export function createYouTubePanel(hooks: YouTubePanelHooks) {
   input.type = 'url';
   input.placeholder = 'Dán link YouTube vào đây';
   input.setAttribute('aria-label', 'Link YouTube');
-  form.append(input, button('Gắn', () => form.requestSubmit(), 'btn btn-primary'));
+  form.append(input, button('Gắn', () => form.requestSubmit(), 'btn btn-primary'), button('Hủy', () => {
+    formWanted = false;
+    input.value = '';
+    sync();
+  }, 'btn btn-quiet'));
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     const link = parseYouTubeLink(input.value);
@@ -113,6 +107,7 @@ export function createYouTubePanel(hooks: YouTubePanelHooks) {
     }
     hooks.beat().youtube = { videoId: link.videoId, start: link.start, loopA: null, loopB: null, rate: 1, linked: false };
     input.value = '';
+    formWanted = false;
     hooks.message('');
     hooks.changed();
     sync();
@@ -152,14 +147,13 @@ export function createYouTubePanel(hooks: YouTubePanelHooks) {
     hooks.changed();
   });
 
-  const linkToggle = button('Chạy cùng bảng: Tắt', () => {
+  const linkToggle = switchControl('Chạy cùng bảng nhịp', false, (on) => {
     const youtube = hooks.beat().youtube;
     if (!youtube) return;
     hooks.timing(() => {
-      youtube.linked = !youtube.linked;
+      youtube.linked = on;
     });
     hooks.changed();
-    syncControls();
   });
 
   const tapButton = button('Gõ tìm BPM', () => {
@@ -181,7 +175,7 @@ export function createYouTubePanel(hooks: YouTubePanelHooks) {
   }, 'btn btn-quiet');
   const hint = el('p', 'muted', 'Bấm vào trong video sẽ khiến phím máy tính tác động lên video. Bấm ra ngoài khung để gõ trống tiếp.');
 
-  controls.append(playToggle, back, forward, markA, markB, clearLoop, speed, linkToggle, tapButton, remove);
+  controls.append(playToggle, back, forward, markA, markB, clearLoop, speed, linkToggle.element, tapButton, remove);
   const side = el('div', 'yt-side');
   side.append(titleText, controls, hint);
   box.append(form, frameHolder, side);
@@ -215,8 +209,7 @@ export function createYouTubePanel(hooks: YouTubePanelHooks) {
     markB.textContent = youtube.loopB === null ? 'Đặt B' : `B ${clock(youtube.loopB)}`;
     clearLoop.disabled = youtube.loopA === null && youtube.loopB === null;
     speed.value = String(youtube.rate);
-    linkToggle.textContent = `Chạy cùng bảng: ${youtube.linked ? 'Bật' : 'Tắt'}`;
-    linkToggle.setAttribute('aria-pressed', String(youtube.linked));
+    linkToggle.set(youtube.linked);
     if (playerReady && player) {
       const title = player.getVideoData?.().title;
       titleText.textContent = title || 'Video YouTube';
@@ -308,9 +301,10 @@ export function createYouTubePanel(hooks: YouTubePanelHooks) {
   /** Shows the video of the beat on screen, or the link box if it has none. */
   function sync() {
     const youtube = hooks.beat().youtube;
-    form.hidden = Boolean(youtube);
+    form.hidden = Boolean(youtube) || !formWanted;
     frameHolder.hidden = !youtube;
     side.hidden = !youtube;
+    box.hidden = !youtube && !formWanted;
     if (!youtube) {
       destroyPlayer();
       return;
@@ -323,6 +317,13 @@ export function createYouTubePanel(hooks: YouTubePanelHooks) {
     element: box,
     sync,
     destroy: destroyPlayer,
+
+    /** Shows the link box, or the video if this beat already has one. */
+    openForm() {
+      formWanted = !hooks.beat().youtube;
+      sync();
+      if (formWanted) input.focus();
+    },
 
     /** Board speed follows the video, but only while the two run together. */
     speedFactor(): number {

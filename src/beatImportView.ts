@@ -2,6 +2,7 @@ import { Piano } from './audio';
 import { Beat, STEPS_PER_BAR } from './beat';
 import { analyzeAudio, beatFromTranscription, estimateBpm, findDownbeat, Transcription, transcribe } from './beatImport';
 import { saveAudio } from './storage';
+import { button, canvasBox, el } from './ui';
 
 const MAX_FILE_BYTES = 100 * 1024 * 1024;
 const BAR_CHOICES = [1, 2, 4];
@@ -13,19 +14,6 @@ const MARKERS: { row: string; label: string; color: string }[] = [
   { row: 'bass', label: 'Bass', color: '#f6a04d' },
 ];
 
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = ''): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text) node.textContent = text;
-  return node;
-}
-
-function button(label: string, onClick: () => void, className = 'btn'): HTMLButtonElement {
-  const node = el('button', className, label);
-  node.type = 'button';
-  node.addEventListener('click', onClick);
-  return node;
-}
 
 function toMono(buffer: AudioBuffer): Float32Array {
   const mono = new Float32Array(buffer.length);
@@ -152,7 +140,7 @@ export async function importAudioFile(
     const earlierStep = button('− 1 bước', () => moveBy(-0.25));
     const laterStep = button('+ 1 bước', () => moveBy(0.25));
 
-    const canvas = el('canvas', 'import-canvas');
+    const { box: canvasHolder, canvas } = canvasBox('import-canvas');
     const summary = el('p', 'muted');
     summary.setAttribute('role', 'status');
     const timeLabel = el('span', 'muted');
@@ -270,7 +258,7 @@ export async function importAudioFile(
     movement.append(earlier, earlierStep, position, laterStep, later, timeLabel);
     const actions = el('div', 'overlay-actions');
     actions.append(button('Hủy', () => close(null), 'btn btn-quiet'), apply);
-    panel.append(heading, note, controls, movement, canvas, summary, actions);
+    panel.append(heading, note, controls, movement, canvasHolder, summary, actions);
     host.append(panel);
     update();
   });

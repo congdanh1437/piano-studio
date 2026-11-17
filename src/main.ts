@@ -11,24 +11,11 @@ import { draw } from './render';
 import { parseMusicXml, readScoreFile } from './musicxml';
 import { parseMidi, Song } from './song';
 import { deleteSong, loadSongs, saveSong } from './storage';
+import { button, el, popover, sliderField, switchControl, tip } from './ui';
 import './style.css';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 const piano = new Piano();
-
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = ''): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text) node.textContent = text;
-  return node;
-}
-
-function button(label: string, onClick: () => void, className = 'btn'): HTMLButtonElement {
-  const node = el('button', className, label);
-  node.type = 'button';
-  node.addEventListener('click', onClick);
-  return node;
-}
 
 const formatTime = (seconds: number) => {
   const s = Math.max(0, Math.round(seconds));
@@ -116,6 +103,12 @@ function showLessons() {
   summary.append(summaryText);
   if (next) summary.append(button(passed === 0 ? 'Bắt đầu học' : 'Học tiếp', () => startLesson(next), 'btn btn-primary'));
   page.append(summary, meter);
+  const howTo = tip('lessons', 'Cách học', [
+    'Bấm "Bắt đầu học" hoặc chọn một bài bên dưới, đọc hướng dẫn ngắn rồi bấm Bắt đầu.',
+    'Nốt rơi từ trên xuống. Chạm phím đàn ở dưới cùng khi nốt chạm vạch trắng; phím cần bấm sẽ sáng lên.',
+    'Bài chờ bạn đánh đúng mới chạy tiếp, nên cứ thong thả. Đạt từ 70% là qua bài.',
+  ]);
+  if (howTo) page.append(howTo);
 
   for (const { level, name, detail } of LEVELS) {
     const section = el('section', 'level');
@@ -231,8 +224,8 @@ function showPlayer(song: Song, lesson?: Lesson) {
   const bar = el('div', 'toolbar');
   const back = button(lesson ? '‹ Bài học' : '‹ Thư viện', () => leave(), 'btn btn-quiet');
   const title = el('strong', 'player-title', song.title);
-  const play = button('Bắt đầu', () => togglePlay(), 'btn btn-primary btn-play');
-  const restart = button('Từ đầu', () => {
+  const play = button('▶ Bắt đầu', () => togglePlay(), 'btn btn-primary btn-play');
+  const restart = button('↺ Từ đầu', () => {
     showIntro = false;
     session.restart();
     syncControls();
@@ -256,33 +249,24 @@ function showPlayer(song: Song, lesson?: Lesson) {
       return node;
     });
 
-  const waitButton = button('Chờ nốt: Bật', () => {
-    session.wait = !session.wait;
+  const waitSwitch = switchControl('Chờ mình đánh đúng nốt', session.wait, (on) => {
+    session.wait = on;
     syncControls();
   });
 
-  const hintButton = button('Chữ phím: Bật', () => {
-    hintsOn = !hintsOn;
-    saveKeyHints(hintsOn);
+  const hintSwitch = switchControl('Hiện chữ phím máy tính', hintsOn, (on) => {
+    hintsOn = on;
+    saveKeyHints(on);
     refreshLabels();
-    syncControls();
   });
 
-  const speedLabel = el('label', 'speed');
-  const speedText = el('span', '', `Tốc độ ${Math.round(session.speed * 100)}%`);
-  const speed = el('input');
-  speed.type = 'range';
-  speed.min = '25';
-  speed.max = '150';
-  speed.step = '5';
-  speed.value = String(Math.round(session.speed * 100));
-  speed.addEventListener('input', () => {
-    session.speed = Number(speed.value) / 100;
-    speedText.textContent = `Tốc độ ${speed.value}%`;
+  const speed = sliderField('Tốc độ', {
+    min: 25, max: 150, step: 5, value: Math.round(session.speed * 100), format: (v) => `${v}%`,
+  }, (value) => {
+    session.speed = value / 100;
   });
-  speedLabel.append(speedText, speed);
 
-  const loopButton = button('Lặp: Đặt A', () => {
+  const loopButton = button('Lặp đoạn: đặt điểm A', () => {
     if (session.loop) {
       session.loop = null;
       loopStart = null;
@@ -295,9 +279,20 @@ function showPlayer(song: Song, lesson?: Lesson) {
     syncControls();
   });
 
-  const stats = el('span', 'stats');
-  stats.setAttribute('aria-live', 'off');
-  bar.append(back, title, play, restart, handGroup, waitButton, hintButton, speedLabel, loopButton, stats);
+  const options = popover('Tùy chọn', [
+    waitSwitch.element,
+    hintSwitch.element,
+    el('p', 'muted', 'Lặp đoạn: chạy tới đầu đoạn khó, bấm đặt điểm A, chạy tiếp tới cuối đoạn rồi bấm đặt điểm B.'),
+    loopButton,
+  ]);
+
+  const score = el('div', 'score-chip');
+  const scoreValue = el('strong', '', '–');
+  const scoreDetail = el('span');
+  score.append(scoreValue, scoreDetail);
+  score.setAttribute('aria-label', 'Điểm');
+
+  bar.append(back, title, play, restart, handGroup, speed.element, options.element, el('span', 'toolbar-spacer'), score);
 
   const progress = el('input', 'progress');
   progress.type = 'range';
@@ -425,16 +420,14 @@ function showPlayer(song: Song, lesson?: Lesson) {
   }
 
   function syncControls() {
-    play.textContent = session.finished ? 'Chơi lại' : session.playing ? 'Tạm dừng' : session.t > LEAD_IN ? 'Tiếp tục' : 'Bắt đầu';
-    waitButton.textContent = `Chờ nốt: ${session.wait ? 'Bật' : 'Tắt'}`;
-    waitButton.setAttribute('aria-pressed', String(session.wait));
-    waitButton.disabled = session.mode === 'listen';
-    hintButton.textContent = `Chữ phím: ${hintsOn ? 'Bật' : 'Tắt'}`;
-    hintButton.setAttribute('aria-pressed', String(hintsOn));
+    play.textContent = session.finished ? '↺ Chơi lại' : session.playing ? '⏸ Tạm dừng' : session.t > LEAD_IN ? '▶ Tiếp tục' : '▶ Bắt đầu';
+    waitSwitch.set(session.wait);
+    waitSwitch.element.disabled = session.mode === 'listen';
+    hintSwitch.set(hintsOn);
     for (const node of handButtons) {
       node.setAttribute('aria-pressed', String(node.dataset.mode === session.mode));
     }
-    loopButton.textContent = session.loop ? 'Bỏ lặp' : loopStart === null ? 'Lặp: Đặt A' : 'Lặp: Đặt B';
+    loopButton.textContent = session.loop ? 'Bỏ lặp đoạn' : loopStart === null ? 'Lặp đoạn: đặt điểm A' : 'Lặp đoạn: đặt điểm B';
     overlay.hidden = !(session.finished || showIntro);
     if (showIntro && lesson) renderIntro(lesson);
     else if (session.finished) renderResult();
@@ -443,10 +436,10 @@ function showPlayer(song: Song, lesson?: Lesson) {
 
   function updatePanel() {
     progress.value = String(session.t);
-    const accuracy = session.accuracy === null ? '–' : `${session.accuracy}%`;
+    scoreValue.textContent = session.accuracy === null ? 'Điểm –' : `Điểm ${session.accuracy}%`;
     const latency = piano.latencyMs === null ? '–' : `${piano.latencyMs} ms`;
-    const sound = piano.samplesLoaded < piano.samplesTotal ? ` · Âm mẫu ${piano.samplesLoaded}/${piano.samplesTotal}` : '';
-    stats.textContent = `Điểm ${accuracy} · Trễ ${latency}${sound}`;
+    const sound = piano.samplesLoaded < piano.samplesTotal ? ` · đang tải âm ${piano.samplesLoaded}/${piano.samplesTotal}` : '';
+    scoreDetail.textContent = `Trễ ${latency}${sound}`;
   }
 
   // Playing keys
