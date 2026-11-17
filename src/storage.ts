@@ -39,6 +39,8 @@ export const loadBeats = () => run<Beat[]>('beats', 'readonly', (s) => s.getAll(
 export const saveBeat = (beat: Beat) => run('beats', 'readwrite', (s) => s.put(beat));
 export const deleteBeat = (id: string) => run('beats', 'readwrite', (s) => s.delete(id));
 
+export const loadAllAudio = () => run<StoredAudio[]>('audio', 'readonly', (s) => s.getAll());
+export const loadAudioIds = () => run<IDBValidKey[]>('audio', 'readonly', (s) => s.getAllKeys());
 export const loadAudio = (id: string) => run<StoredAudio | undefined>('audio', 'readonly', (s) => s.get(id));
 export const saveAudio = (audio: StoredAudio) => run('audio', 'readwrite', (s) => s.put(audio));
 export const deleteAudio = (id: string) => run('audio', 'readwrite', (s) => s.delete(id));

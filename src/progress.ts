@@ -34,6 +34,11 @@ export function saveStars(lessonId: string, stars: number) {
   }
 }
 
+/** Replaces all stars at once; used when restoring a backup, which never lowers them. */
+export function saveAllStars(stars: Record<string, number>) {
+  write(STARS_KEY, JSON.stringify(stars));
+}
+
 /** On by default where there is a mouse or trackpad, which means a computer keyboard too. */
 export function loadKeyHints(): boolean {
   const saved = read(HINTS_KEY);

@@ -248,6 +248,32 @@ input:focus-visible {
   white-space: nowrap;
 }
 
+.backup {
+  display: grid;
+  gap: 10px;
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+
+.backup h2 {
+  font-size: 1.1rem;
+}
+
+.backup-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-size: 0.9rem;
+}
+
+.backup-check input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--accent);
+}
+
 /* Beat maker */
 .home-beats {
   display: flex;

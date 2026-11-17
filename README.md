@@ -13,7 +13,21 @@ npm run dev
 - Trên tablet cùng Wi-Fi: mở `http://<IP-máy-tính>:5173` bằng Chrome.
 - Chạy test: `npm test`. Build bản phát hành: `npm run build`.
 
-Chức năng cài như app và dùng offline chỉ hoạt động qua HTTPS, tức là bản đã được đưa lên hosting.
+Chức năng cài như app, dùng offline và giữ màn hình sáng chỉ hoạt động qua HTTPS, tức là bản đã được đưa lên hosting.
+
+## Đưa lên GitHub Pages
+
+File `.github/workflows/deploy.yml` tự chạy test, build và đăng app mỗi khi đẩy code lên nhánh `main`. Cách bật:
+
+1. Tạo repo trên GitHub rồi đẩy code lên. Lưu ý: GitHub Pages miễn phí chỉ dùng được với repo **công khai**, nghĩa là ai cũng xem được code.
+2. Trong repo, vào **Settings → Pages → Source** và chọn **GitHub Actions**.
+3. Sau lần đẩy code tiếp theo, app có ở `https://<tên-tài-khoản>.github.io/<tên-repo>/`.
+
+Danh sách cần kiểm tra khi thử trên tablet nằm trong `docs/kiem-tra-tablet.md`.
+
+## Sao lưu dữ liệu
+
+Bài đã nhập, beat, sao bài học và file MP3 chỉ lưu trong trình duyệt của từng thiết bị, và mỗi địa chỉ (ví dụ `localhost` và địa chỉ hosting) có kho dữ liệu riêng. Vào tab "Thư viện" → "Tạo bản sao lưu" để lưu ra file, rồi "Khôi phục từ file" trên máy khác. Khôi phục chỉ thêm vào: beat trùng thì giữ bản sửa mới hơn, sao bài học thì giữ kết quả cao hơn.
 
 ## Cách chơi
 
@@ -34,6 +48,8 @@ Chức năng cài như app và dùng offline chỉ hoạt động qua HTTPS, t�
 | `src/beatView.ts` | Màn hình làm beat |
 | `src/beatImport.ts` | Phân tích file nhạc: BPM, trống, bass, giọng |
 | `src/beatImportView.ts` | Màn hình nhập và chỉnh file nhạc |
+| `src/backup.ts` | Tạo, kiểm tra và gộp bản sao lưu |
+| `src/backupView.ts` | Phần sao lưu trong tab Thư viện |
 | `src/youtube.ts` | Đọc link YouTube, gõ tìm BPM |
 | `src/youtubePanel.ts` | Khung video YouTube và các nút điều khiển |
 | `src/lessons.ts` | Giáo trình 5 cấp và cách chấm sao |

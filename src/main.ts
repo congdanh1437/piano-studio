@@ -1,4 +1,5 @@
 import { Piano } from './audio';
+import { backupSection } from './backupView';
 import { mountBeatMaker } from './beatView';
 import { demoSongs } from './demos';
 import { computerKeyLabels, fitOctaveShift, fitRange, keyAt, Key, layoutKeys, midiForCode, Range } from './keyboard';
@@ -120,7 +121,7 @@ function showLessons() {
   }
 }
 
-async function showLibrary() {
+async function showLibrary(notice = '') {
   const page = homeShell('library');
   const intro = el('div', 'library-intro');
   intro.append(el('p', 'muted', 'Luyện tự do các bài bạn muốn. Nhập file MIDI để thêm bài.'));
@@ -168,7 +169,7 @@ async function showLibrary() {
     }
     list.append(item);
   }
-  page.append(intro, message, list);
+  page.append(intro, message, list, backupSection((summary) => void showLibrary(summary), notice));
 }
 
 // ---------- Player ----------
