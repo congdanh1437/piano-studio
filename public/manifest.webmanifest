@@ -1,0 +1,13 @@
+{
+  "name": "Piano Studio",
+  "short_name": "Piano",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#11141c",
+  "theme_color": "#11141c",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
