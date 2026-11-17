@@ -67,15 +67,22 @@ export class Piano {
     for (const midi of [...this.held.keys()]) this.noteOff(midi);
   }
 
-  private start(midi: number, velocity: number): Voice | null {
+  /** A piano note at a set time into any output, for other screens such as the looper. */
+  voice(midi: number, velocity: number, when: number, output: AudioNode): { stop(at: number): void } | null {
+    const voice = this.start(midi, velocity, when, output);
+    return voice ? { stop: (at: number) => this.release(voice, Math.max(at, when)) } : null;
+  }
+
+  private start(midi: number, velocity: number, when?: number, output?: AudioNode): Voice | null {
     const { ctx, master } = this;
     if (!ctx || !master) return null;
+    const at = when ?? ctx.currentTime;
     const gain = ctx.createGain();
-    gain.connect(master);
+    gain.connect(output ?? master);
     const sample = this.nearestSample(midi);
     const voice = sample
-      ? this.startSample(ctx, gain, sample, midi, velocity)
-      : this.startSynth(ctx, gain, midi, velocity);
+      ? this.startSample(ctx, gain, sample, midi, velocity, at)
+      : this.startSynth(ctx, gain, midi, velocity, at);
     return voice;
   }
 
@@ -93,19 +100,19 @@ export class Piano {
     sample: { root: number; buffer: AudioBuffer },
     midi: number,
     velocity: number,
+    when: number,
   ): Voice {
     const source = ctx.createBufferSource();
     source.buffer = sample.buffer;
     source.playbackRate.value = 2 ** ((midi - sample.root) / 12);
     gain.gain.value = 0.25 + velocity * 0.75;
     source.connect(gain);
-    source.start();
+    source.start(when);
     return { gain, sources: [source] };
   }
 
   /** Fallback until samples arrive, and when offline before they were ever cached. */
-  private startSynth(ctx: AudioContext, gain: GainNode, midi: number, velocity: number): Voice {
-    const now = ctx.currentTime;
+  private startSynth(ctx: AudioContext, gain: GainNode, midi: number, velocity: number, now: number): Voice {
     const peak = 0.12 + velocity * 0.3;
     gain.gain.setValueAtTime(peak, now);
     gain.gain.setTargetAtTime(peak * 0.05, now + 0.01, 0.9);
@@ -119,7 +126,7 @@ export class Piano {
       osc.frequency.value = frequency(midi) * ratio;
       partial.gain.value = level;
       osc.connect(partial).connect(gain);
-      osc.start();
+      osc.start(now);
       return osc;
     });
     return { gain, sources };

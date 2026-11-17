@@ -68,7 +68,7 @@ function burst(ctx: BaseAudioContext, out: AudioNode, time: number, type: Biquad
   source.stop(time + decay + 0.02);
 }
 
-function playDrum(ctx: BaseAudioContext, out: AudioNode, id: string, time: number) {
+export function playDrum(ctx: BaseAudioContext, out: AudioNode, id: string, time: number) {
   switch (id) {
     case 'kick':
       sweep(ctx, out, time, 150, 45, 0.09, 1, 0.32);
@@ -89,6 +89,11 @@ function playDrum(ctx: BaseAudioContext, out: AudioNode, id: string, time: numbe
       break;
     case 'tom':
       sweep(ctx, out, time, 200, 95, 0.12, 0.75, 0.28);
+      break;
+    case 'shaker':
+      // Two quick swishes, like beads hitting the inside of the shell.
+      burst(ctx, out, time, 'bandpass', 6500, 0.22, 0.05);
+      burst(ctx, out, time + 0.018, 'highpass', 5500, 0.3, 0.07);
       break;
     case 'perc':
       for (const frequency of [540, 800]) {

@@ -28,12 +28,21 @@ Mục nào có vấn đề, hãy ghi rõ đang ở màn hình nào và đã bấ
 - [ ] **Nhập MP3** với một file beat thật: BPM đúng không? Hàng nào sai nhiều nhất?
 - [ ] Dán link YouTube: video phát được? Lặp đoạn A–B có quay về đúng điểm A?
 
-## 3. Dữ liệu
+## 3. Live Loop
+
+- [ ] Bấm **Thu lớp mới**, chờ đếm vào 4 tiếng, chơi vài nốt Piano theo máy đếm nhịp: khi vòng lặp quay lại, nốt có rơi đúng nhịp không?
+- [ ] Nếu nốt thu được **luôn muộn** (hoặc luôn sớm) so với nhịp: tăng (hoặc giảm) **Bù trễ** rồi thu lại. Ghi lại con số cho kết quả đúng.
+- [ ] Đổi sang **Trống** trong lúc thu: có tự sang lớp mới? Gõ pad có kêu ngay?
+- [ ] Chồng 4–5 lớp: tiếng có bị rè, giật hay trễ dần không?
+- [ ] Kéo **Filter** xuống rồi bấm **Mở filter**: tiếng có lắng xuống rồi bùng lại?
+- [ ] **Thu màn biểu diễn** 20–30 giây: file lưu được và nghe lại được?
+
+## 4. Dữ liệu
 
 - [ ] Tab **Thư viện** → **Tạo bản sao lưu** trên laptop, mở file đó trên tablet bằng **Khôi phục từ file**: beat và sao bài học có đủ?
 - [ ] Đóng hẳn Chrome rồi mở lại: beat và tiến độ còn nguyên?
 
-## 4. Chỉ khi chạy từ hosting HTTPS
+## 5. Chỉ khi chạy từ hosting HTTPS
 
 - [ ] Cài được như ứng dụng, có biểu tượng trên màn hình chính?
 - [ ] Mở từ biểu tượng: toàn màn hình, không có thanh địa chỉ?

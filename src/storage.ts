@@ -1,7 +1,8 @@
 import { Beat } from './beat';
+import { LoopSession } from './loop';
 import { Song } from './song';
 
-type StoreName = 'songs' | 'beats' | 'audio';
+type StoreName = 'songs' | 'beats' | 'audio' | 'loops';
 
 export interface StoredAudio {
   id: string;
@@ -11,9 +12,9 @@ export interface StoredAudio {
 
 function open(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('piano-studio', 3);
+    const request = indexedDB.open('piano-studio', 4);
     request.onupgradeneeded = () => {
-      for (const name of ['songs', 'beats', 'audio']) {
+      for (const name of ['songs', 'beats', 'audio', 'loops']) {
         if (!request.result.objectStoreNames.contains(name)) request.result.createObjectStore(name, { keyPath: 'id' });
       }
     };
@@ -38,6 +39,10 @@ export const deleteSong = (id: string) => run('songs', 'readwrite', (s) => s.del
 export const loadBeats = () => run<Beat[]>('beats', 'readonly', (s) => s.getAll());
 export const saveBeat = (beat: Beat) => run('beats', 'readwrite', (s) => s.put(beat));
 export const deleteBeat = (id: string) => run('beats', 'readwrite', (s) => s.delete(id));
+
+/** The looper keeps one working session, saved as you go. */
+export const loadLoop = () => run<(LoopSession & { id: string }) | undefined>('loops', 'readonly', (s) => s.get('current'));
+export const saveLoop = (session: LoopSession) => run('loops', 'readwrite', (s) => s.put({ ...session, id: 'current' }));
 
 export const loadAllAudio = () => run<StoredAudio[]>('audio', 'readonly', (s) => s.getAll());
 export const loadAudioIds = () => run<IDBValidKey[]>('audio', 'readonly', (s) => s.getAllKeys());

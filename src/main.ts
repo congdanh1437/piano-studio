@@ -1,6 +1,7 @@
 import { Piano } from './audio';
 import { backupSection } from './backupView';
 import { mountBeatMaker } from './beatView';
+import { mountLiveLoop } from './loopView';
 import { demoSongs } from './demos';
 import { computerKeyLabels, fitOctaveShift, fitRange, keyAt, Key, layoutKeys, midiForCode, Range } from './keyboard';
 import { evaluate, Lesson, lessons, LEVELS } from './lessons';
@@ -46,33 +47,49 @@ function starsNode(stars: number) {
 
 let leaveScreen: (() => void) | null = null;
 
-function homeShell(active: 'lessons' | 'library' | 'beats') {
+type Screen = 'lessons' | 'library' | 'beats' | 'loop';
+
+function homeShell(active: Screen) {
   leaveScreen?.();
   leaveScreen = null;
   app.replaceChildren();
-  const page = el('main', active === 'beats' ? 'home home-beats' : 'home');
+  const fullHeight = active === 'beats' || active === 'loop';
+  const page = el('main', fullHeight ? `home home-beats${active === 'loop' ? ' home-loop' : ''}` : 'home');
   const header = el('header', 'home-head');
   const tabs = el('nav', 'segmented');
   tabs.setAttribute('aria-label', 'Mục chính');
-  const lessonsTab = button('Bài học', showLessons, 'seg');
-  const libraryTab = button('Thư viện', () => void showLibrary(), 'seg');
-  const beatsTab = button('Làm beat', () => void showBeats(), 'seg');
-  lessonsTab.setAttribute('aria-pressed', String(active === 'lessons'));
-  libraryTab.setAttribute('aria-pressed', String(active === 'library'));
-  beatsTab.setAttribute('aria-pressed', String(active === 'beats'));
-  tabs.append(lessonsTab, libraryTab, beatsTab);
+  const entries: [Screen, string, () => void][] = [
+    ['lessons', 'Bài học', showLessons],
+    ['library', 'Thư viện', () => void showLibrary()],
+    ['beats', 'Làm beat', () => void showBeats()],
+    ['loop', 'Live Loop', () => void showLoop()],
+  ];
+  for (const [screen, label, open] of entries) {
+    const tab = button(label, open, 'seg');
+    tab.setAttribute('aria-pressed', String(active === screen));
+    tabs.append(tab);
+  }
   header.append(el('h1', '', 'Piano Studio'), tabs);
   page.append(header);
   app.append(page);
   return page;
 }
 
-async function showBeats() {
-  const page = homeShell('beats');
-  const leave = await mountBeatMaker(page, piano);
-  // The user may have switched tab while saved beats were loading.
+/** Mounts a screen that loads data first, and cleans it up if the user already moved on. */
+async function mountScreen(page: HTMLElement, mount: Promise<() => void>) {
+  const leave = await mount;
   if (page.isConnected) leaveScreen = leave;
   else leave();
+}
+
+async function showBeats() {
+  const page = homeShell('beats');
+  await mountScreen(page, mountBeatMaker(page, piano));
+}
+
+async function showLoop() {
+  const page = homeShell('loop');
+  await mountScreen(page, mountLiveLoop(page, piano));
 }
 
 function startLesson(lesson: Lesson) {

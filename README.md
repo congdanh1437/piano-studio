@@ -36,6 +36,7 @@ Bài đã nhập, beat, sao bài học và file MP3 chỉ lưu trong trình duy�
 - Laptop: chữ cần nhấn hiện ngay trên phím đàn và nốt rơi. Tay trái dùng hàng `Z X C V…` (phím đen `S D G H J`), tay phải dùng hàng `Q W E R…` (phím đen `2 3 5 6 7`); `Q` luôn là Đô giữa khi bài nằm trong quãng thường dùng. `←` `→` đổi quãng tám, `Space` để chạy hoặc dừng.
 - Làm beat: tab "Làm beat". Bấm hoặc kéo trên bảng để bật nốt cho Trống, Bass, Giai điệu; tối đa 4 ô nhịp. Beat tự lưu trên thiết bị và xuất được WAV hoặc MIDI. Trên laptop, `Z X C A S D F` gõ trống; bật "Thu" khi đang phát để ghi nhịp gõ vào bảng.
 - Nhập beat: trong tab "Làm beat", bấm "Nhập MP3". App ước đoán BPM, trống và bass rồi cho bạn chỉnh trước khi đưa lên bảng; file gốc có thể phát kèm để so sánh. Kết quả tốt nhất với beat không lời, và cần nghe lại để sửa. File xuất chỉ gồm phần trên bảng, không gồm MP3 gốc.
+- Live Loop: tab "Live Loop" để biểu diễn kiểu live looping. Chọn độ dài vòng (1–8 ô nhịp), bấm "Thu lớp mới" (hoặc `Enter`), chờ đếm vào rồi chơi; mỗi lượt thu là một lớp riêng có tắt tiếng, âm lượng và xóa. Đổi nhạc cụ trong lúc thu sẽ tự sang lớp mới. Có 6 nhạc cụ (Piano, Electric piano, Pad, Sine lead, Bass, Trống có shaker), hiệu ứng Filter, Delay, Reverb, căn nhịp khi thu, và "Thu màn biểu diễn" để lưu cả phần trình diễn (kể cả lúc vặn hiệu ứng) ra file âm thanh. Máy đếm nhịp không bị thu vào file. Nếu nốt thu được luôn lệch nhịp, chỉnh "Bù trễ". App tự dừng khi chuyển sang ứng dụng khác.
 - Làm beat theo YouTube: trong tab "Làm beat", dán link video để nghe ngay trong app. Có lặp đoạn A–B, giảm tốc, gõ tay để tìm BPM, và chạy cùng bảng để gõ lại nhịp bằng "Thu". App không tải và không đọc được âm thanh của video, nên không tự tìm nhịp như với file MP3. Cần có mạng, và một số video không cho nhúng.
 - Bài của bạn: tab "Thư viện", bấm "Nhập bài". App nhận file MIDI và bản nhạc MusicXML (`.musicxml`, `.xml`, `.mxl`, ví dụ xuất từ MuseScore). Bè piano có 2 khuông được chia thành tay phải và tay trái; dấu lặp và các nhánh 1, 2 được chơi đúng thứ tự, nhưng chưa xử lý được D.C. và D.S. Bài được lưu ngay trên thiết bị đó.
 
@@ -48,6 +49,9 @@ Bài đã nhập, beat, sao bài học và file MP3 chỉ lưu trong trình duy�
 | `src/beatView.ts` | Màn hình làm beat |
 | `src/beatImport.ts` | Phân tích file nhạc: BPM, trống, bass, giọng |
 | `src/beatImportView.ts` | Màn hình nhập và chỉnh file nhạc |
+| `src/loop.ts` | Luật thời gian của Live Loop: vòng lặp, thu, căn nhịp, bù trễ |
+| `src/instruments.ts` | Nhạc cụ và chuỗi hiệu ứng của Live Loop |
+| `src/loopView.ts` | Màn hình Live Loop |
 | `src/backup.ts` | Tạo, kiểm tra và gộp bản sao lưu |
 | `src/backupView.ts` | Phần sao lưu trong tab Thư viện |
 | `src/youtube.ts` | Đọc link YouTube, gõ tìm BPM |
